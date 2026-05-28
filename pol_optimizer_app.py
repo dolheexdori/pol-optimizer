@@ -1468,8 +1468,8 @@ elif isinstance(result, dict):
     elif result_menu == "상세데이터":
         st.markdown("### 📋 전체 기지 상세 데이터")
         show_cols = ["기지ID", "기지명", "현재유류량", "최대저장량", "일일소모량", "잔여가능일수", "우선순위", "작전위험점수", "보급필요량"]
-        st.dataframe(styled_priority_table(result["scenario_data"][show_cols]), use_container_width=True)
-
+        st.dataframe(result["scenario_data"][show_cols], use_container_width=True)
+        
     elif result_menu == "알고리즘검증":
         st.markdown("### 🧬 유전 알고리즘 수렴 과정")
         if result["history"]:
