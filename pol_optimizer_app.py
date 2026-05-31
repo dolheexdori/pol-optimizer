@@ -1,4 +1,4 @@
-import math
+﻿import math
 import os
 import random
 from typing import Any, Dict, List, Optional, Tuple
@@ -1076,12 +1076,11 @@ scenario_list = scenario_df["시나리오"].dropna().unique().tolist() or status
 
 with st.sidebar:
     st.header("🪖 작전 조건 입력")
-    st.success(f"✅ {APP_VERSION} 적용됨")
 
-    selected_scenario = st.selectbox("시나리오 선택", scenario_list)
-
+    selected_scenario = st.selectbox("시나리오", scenario_list)
     default_truck_count, default_truck_capacity = get_transport_defaults(status_df, selected_scenario)
 
+    st.caption("핵심 조건만 조정한 뒤 바로 계산할 수 있습니다.")
     target_ratio = st.slider("목표 보급률", 0.50, 1.00, 0.80, 0.05)
     truck_count_input = st.number_input(
         "가용 유조차 수",
@@ -1092,7 +1091,7 @@ with st.sidebar:
         key=f"truck_count_{selected_scenario}",
     )
     truck_capacity_input = st.number_input(
-        "유조차 1대 적재량(L)",
+        "1대 적재량(L)",
         min_value=1000,
         max_value=200000,
         value=int(default_truck_capacity),
@@ -1100,23 +1099,28 @@ with st.sidebar:
         key=f"truck_capacity_{selected_scenario}",
     )
 
-    urgent_threshold = st.number_input("긴급 기준 일수", min_value=1.0, max_value=10.0, value=3.0, step=0.5)
-    caution_threshold = st.number_input("주의 기준 일수", min_value=2.0, max_value=15.0, value=5.0, step=0.5)
-
-    st.divider()
-    st.header("⚙️ 최적화 조건")
     objective_mode = st.selectbox("최적화 목적", ["종합 판단", "거리 최소화", "긴급기지 우선", "차량 부하 균등"])
-    assignment_mode = st.selectbox("유조차 배정 방식", ["순차 적재", "차량 부하 균등"])
-    show_route_lines = st.checkbox("지도에 경로선 표시", value=True)
+    assignment_mode = "순차 적재"
+    show_route_lines = True
+    urgent_threshold = 3.0
+    caution_threshold = 5.0
+    population_size = 80
+    generations = 200
+    mutation_rate = 0.10
 
-    with st.expander("유전 알고리즘 세부 설정"):
+    with st.expander("고급 설정"):
+        assignment_mode = st.selectbox("유조차 배정 방식", ["순차 적재", "차량 부하 균등"])
+        show_route_lines = st.checkbox("지도에 경로선 표시", value=True)
+        urgent_threshold = st.number_input("긴급 기준 일수", min_value=1.0, max_value=10.0, value=3.0, step=0.5)
+        caution_threshold = st.number_input("주의 기준 일수", min_value=2.0, max_value=15.0, value=5.0, step=0.5)
+        st.markdown("##### 유전 알고리즘")
         population_size = st.number_input("개체 수", 30, 300, 80, 10)
         generations = st.number_input("세대 수", 50, 700, 200, 50)
         mutation_rate = st.slider("돌연변이율", 0.01, 0.30, 0.10, 0.01)
 
-    run_button = st.button("🚀 최적해 계산하기", type="primary")
+    run_button = st.button("🚀 최적해 계산하기", type="primary", use_container_width=True)
 
-    if st.button("🔄 캐시 초기화"):
+    if st.button("🔄 캐시 초기화", use_container_width=True):
         st.cache_data.clear()
         st.session_state.clear()
         st.rerun()
@@ -1468,8 +1472,8 @@ elif isinstance(result, dict):
     elif result_menu == "상세데이터":
         st.markdown("### 📋 전체 기지 상세 데이터")
         show_cols = ["기지ID", "기지명", "현재유류량", "최대저장량", "일일소모량", "잔여가능일수", "우선순위", "작전위험점수", "보급필요량"]
-        st.dataframe(result["scenario_data"][show_cols], use_container_width=True)
-        
+        st.dataframe(styled_priority_table(result["scenario_data"][show_cols]), use_container_width=True)
+
     elif result_menu == "알고리즘검증":
         st.markdown("### 🧬 유전 알고리즘 수렴 과정")
         if result["history"]:
