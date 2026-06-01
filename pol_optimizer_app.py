@@ -807,6 +807,17 @@ def create_map(
 
 def styled_priority_table(df: pd.DataFrame):
     table = df.copy().sort_values(["작전위험점수", "잔여가능일수", "보급필요량"], ascending=[False, True, False])
+
+    def priority_row_style(row):
+        priority = str(row.get("우선순위", ""))
+        if priority == "긴급":
+            color = "background-color: #ffe1e1"
+        elif priority == "주의":
+            color = "background-color: #fff4cc"
+        else:
+            color = "background-color: #eaf7ee"
+        return [color] * len(row)
+
     return (
         table.style
         .format(
@@ -819,9 +830,7 @@ def styled_priority_table(df: pd.DataFrame):
                 "작전위험점수": "{:.1f}",
             }
         )
-        .background_gradient(subset=["작전위험점수"], cmap="YlOrRd")
-        .background_gradient(subset=["잔여가능일수"], cmap="RdYlGn")
-        .background_gradient(subset=["보급필요량"], cmap="YlOrRd")
+        .apply(priority_row_style, axis=1)
     )
 
 
