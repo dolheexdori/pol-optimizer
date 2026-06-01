@@ -812,12 +812,12 @@ def styled_priority_table(df: pd.DataFrame):
     def priority_row_style(row):
         priority = str(row.get("우선순위", ""))
         if priority == "긴급":
-            color = "background-color: #ffe1e1"
+            background = "#ffe1e1"
         elif priority == "주의":
-            color = "background-color: #fff4cc"
+            background = "#fff4cc"
         else:
-            color = "background-color: #eaf7ee"
-        return [color] * len(row)
+            background = "#eaf7ee"
+        return [f"background-color: {background}; color: #111827; border-color: #d1d5db" for _ in row]
 
     return (
         table.style
@@ -832,6 +832,12 @@ def styled_priority_table(df: pd.DataFrame):
             }
         )
         .apply(priority_row_style, axis=1)
+        .set_table_styles(
+            [
+                {"selector": "th", "props": [("background-color", "#f3f4f6"), ("color", "#111827"), ("border-color", "#d1d5db")]},
+                {"selector": "td", "props": [("color", "#111827"), ("border-color", "#d1d5db")]},
+            ]
+        )
     )
 
 
