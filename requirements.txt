@@ -1,5 +1,6 @@
-streamlit
+﻿streamlit
 pandas
 openpyxl
 folium
 streamlit-folium
+matplotlib
