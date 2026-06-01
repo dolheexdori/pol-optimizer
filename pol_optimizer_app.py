@@ -4,6 +4,7 @@ import random
 from typing import Any, Dict, List, Optional, Tuple
 
 import folium
+import altair as alt
 import pandas as pd
 import streamlit as st
 from folium.features import DivIcon
@@ -837,7 +838,68 @@ def styled_priority_table(df: pd.DataFrame):
 def build_chart_data(scenario_data: pd.DataFrame):
     chart_df = scenario_data.copy().sort_values("잔여가능일수", ascending=True)
     chart_df["기지표시"] = chart_df["기지명"] + " (" + chart_df["기지ID"].astype(str) + ")"
+    chart_df["기지"] = chart_df["기지ID"].astype(str) + " | " + chart_df["기지명"].astype(str)
     return chart_df
+
+
+def render_fuel_status_charts(chart_df: pd.DataFrame):
+    plot_df = chart_df.copy().sort_values("잔여가능일수", ascending=True)
+    base_order = plot_df["기지"].tolist()
+    color = alt.Color("기지:N", legend=None, scale=alt.Scale(scheme="tableau20"))
+    tooltip = [
+        alt.Tooltip("기지:N", title="기지"),
+        alt.Tooltip("우선순위:N", title="우선순위"),
+        alt.Tooltip("잔여가능일수:Q", title="잔여 가능 일수", format=".2f"),
+        alt.Tooltip("보급필요량:Q", title="보급 필요량(L)", format=",.0f"),
+        alt.Tooltip("작전위험점수:Q", title="작전위험점수", format=".1f"),
+    ]
+
+    chart_col1, chart_col2 = st.columns(2)
+    with chart_col1:
+        st.markdown("#### 잔여 가능 일수")
+        days_chart = (
+            alt.Chart(plot_df)
+            .mark_bar(cornerRadiusEnd=4)
+            .encode(
+                x=alt.X("잔여가능일수:Q", title="일"),
+                y=alt.Y("기지:N", sort=base_order, title="기지", axis=alt.Axis(labelLimit=180)),
+                color=color,
+                tooltip=tooltip,
+            )
+            .properties(height=280)
+        )
+        st.altair_chart(days_chart, use_container_width=True)
+
+    with chart_col2:
+        st.markdown("#### 보급 필요량")
+        demand_chart = (
+            alt.Chart(plot_df)
+            .mark_bar(cornerRadiusEnd=4)
+            .encode(
+                x=alt.X("보급필요량:Q", title="L"),
+                y=alt.Y("기지:N", sort=base_order, title="기지", axis=alt.Axis(labelLimit=180)),
+                color=color,
+                tooltip=tooltip,
+            )
+            .properties(height=280)
+        )
+        st.altair_chart(demand_chart, use_container_width=True)
+
+    st.markdown("#### 작전위험점수 추이")
+    risk_df = plot_df.sort_values("작전위험점수", ascending=False).reset_index(drop=True)
+    risk_df["순위"] = risk_df.index + 1
+    risk_chart = (
+        alt.Chart(risk_df)
+        .mark_line(point=alt.OverlayMarkDef(size=90), strokeWidth=3)
+        .encode(
+            x=alt.X("순위:O", title="위험도 순위", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("작전위험점수:Q", title="점수"),
+            color=alt.Color("기지:N", legend=alt.Legend(title="기지", orient="bottom", columns=4), scale=alt.Scale(scheme="tableau20")),
+            tooltip=tooltip,
+        )
+        .properties(height=320)
+    )
+    st.altair_chart(risk_chart, use_container_width=True)
 
 
 # =========================================================
@@ -1354,7 +1416,6 @@ elif isinstance(result, dict):
             "유류상태분석",
             "차량배정결과",
             "경로대안비교",
-            "시나리오비교",
             "상세데이터",
             "알고리즘검증",
             "최종보고서",
@@ -1413,16 +1474,7 @@ elif isinstance(result, dict):
     elif result_menu == "유류상태분석":
         st.markdown("### 📊 유류 상태 분석")
         chart_df = build_chart_data(result["scenario_data"])
-        chart_col1, chart_col2 = st.columns(2)
-        with chart_col1:
-            st.markdown("#### 잔여 가능 일수")
-            st.bar_chart(chart_df.set_index("기지표시")[["잔여가능일수"]], use_container_width=True)
-        with chart_col2:
-            st.markdown("#### 보급 필요량")
-            st.area_chart(chart_df.set_index("기지표시")[["보급필요량"]], use_container_width=True)
-        st.markdown("#### 작전위험점수")
-        risk_chart_df = chart_df.sort_values("작전위험점수", ascending=False)
-        st.bar_chart(risk_chart_df.set_index("기지표시")[["작전위험점수"]], use_container_width=True)
+        render_fuel_status_charts(chart_df)
 
     elif result_menu == "차량배정결과":
         st.markdown("### 🚚 유조차별 최적 배정 결과")
@@ -1469,15 +1521,6 @@ elif isinstance(result, dict):
         )
         st.info("경로 대안은 작전비용, 긴급도, 수송거리 기준을 비교하기 위한 참고안입니다.")
 
-    elif result_menu == "시나리오비교":
-        st.markdown("### 🧩 시나리오 비교")
-        scenario_comparison_df = result["scenario_comparison_df"]
-        st.dataframe(
-            scenario_comparison_df.style.format({"총보급필요량(L)": "{:,.0f}", "현재수송가능량(L)": "{:,.0f}"}),
-            use_container_width=True,
-        )
-        st.bar_chart(scenario_comparison_df.set_index("시나리오")[["총보급필요량(L)", "현재수송가능량(L)"]], use_container_width=True)
-
     elif result_menu == "상세데이터":
         st.markdown("### 📋 전체 기지 상세 데이터")
         show_cols = ["기지ID", "기지명", "현재유류량", "최대저장량", "일일소모량", "잔여가능일수", "우선순위", "작전위험점수", "보급필요량"]
@@ -1510,13 +1553,7 @@ else:
 
     if preview_menu == "유류상태분석":
         chart_df = build_chart_data(scenario_data)
-        chart_col1, chart_col2 = st.columns(2)
-        with chart_col1:
-            st.markdown("#### 잔여 가능 일수")
-            st.bar_chart(chart_df.set_index("기지표시")[["잔여가능일수"]], use_container_width=True)
-        with chart_col2:
-            st.markdown("#### 보급 필요량")
-            st.area_chart(chart_df.set_index("기지표시")[["보급필요량"]], use_container_width=True)
+        render_fuel_status_charts(chart_df)
 
     elif preview_menu == "시나리오비교":
         scenario_comparison_df = build_scenario_comparison(base_df, status_df, scenario_list, target_ratio, urgent_threshold, caution_threshold, truck_count, truck_capacity)
